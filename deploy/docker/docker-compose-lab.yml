@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+
+  node-exporter-1:
+    image: prom/node-exporter:latest
+    container_name: node-exporter-1
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
+    networks:
+      - monitoring
+
+  node-exporter-2:
+    image: prom/node-exporter:latest
+    container_name: node-exporter-2
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
+    networks:
+      - monitoring
+
+  prometheus-1:
+    image: prom/prometheus
+    container_name: prometheus-1
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+#      - '--storage.tsdb.path=/prometheus'
+#      - '--web.console.libraries=/etc/prometheus/console_libraries'
+#      - '--web.console.templates=/etc/prometheus/consoles'
+#      - '--web.enable-lifecycle'
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+    volumes:
+      - ./servers/server1/prometheus:/etc/prometheus
+      - prom_data1:/prometheus
+    networks:
+      - monitoring
+
+  prometheus-2:
+    image: prom/prometheus
+    container_name: prometheus-2
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    #      - '--storage.tsdb.path=/prometheus'
+    #      - '--web.console.libraries=/etc/prometheus/console_libraries'
+    #      - '--web.console.templates=/etc/prometheus/consoles'
+    #      - '--web.enable-lifecycle'
+    ports:
+      - 9091:9090
+    restart: unless-stopped
+    volumes:
+      - ./servers/server2/prometheus:/etc/prometheus
+      - prom_data2:/prometheus
+    networks:
+      - monitoring
+
+  promxy:
+    container_name: promxy
+    image: quay.io/jacksontj/promxy
+    hostname: promxy
+    build:
+      context: .
+      dockerfile: Dockerfile.promxy
+    ports:
+      - "8082:8082"
+    volumes:
+#      - ./../../cmd:/cmd
+      - logvolume01:/var/log
+      - ./promxy:/promxy
+    command:
+      - --config=/promxy/config.yaml
+      - --log-level=info
+      - --web.enable-lifecycle
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/datasources
+    networks:
+      - monitoring
+
+volumes:
+  prom_data1: {}
+  prom_data2: {}
+  logvolume01: {}
+
+networks:
+  monitoring:
+    driver: bridge

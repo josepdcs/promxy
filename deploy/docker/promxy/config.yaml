@@ -1,0 +1,48 @@
+##
+## Regular prometheus configuration
+##
+global:
+  evaluation_interval: 15s
+  external_labels:
+    source: promxy
+
+rule_files:
+- "*rule"
+
+alerting:
+  alertmanagers:
+  - scheme: http
+    static_configs:
+    - targets:
+      - "127.0.0.1:12345"
+
+remote_write:
+  - url: http://localhost:8083/receive
+
+promxy:
+  server_groups:
+    - static_configs:
+        - targets:
+          - prometheus-1:9090
+      labels:
+        sg: from_prometheus_1
+      anti_affinity: 10s
+      scheme: http
+      http_client:
+        dial_timeout: 1s
+        tls_config:
+          insecure_skip_verify: true
+      ignore_error: true
+
+    - static_configs:
+        - targets:
+            - prometheus-2:9090
+      labels:
+        sg: from_prometheus_2
+      anti_affinity: 10s
+      scheme: http
+      http_client:
+        dial_timeout: 1s
+        tls_config:
+          insecure_skip_verify: true
+      ignore_error: true
