@@ -6,7 +6,7 @@ datasources:
   - name: "Prometheus 1"
     type: prometheus
     url: http://prometheus-1:9090
-    isDefault: true
+    isDefault: false
     access: proxy
     editable: true
   - name: "Prometheus 2"
@@ -15,9 +15,21 @@ datasources:
     isDefault: false
     access: proxy
     editable: true
+  - name: "Victoria Metrics 1"
+    type: prometheus
+    url: http://victoriametrics-1:8428
+    isDefault: false
+    access: proxy
+    editable: true
+  - name: "Victoria Metrics 2"
+    type: prometheus
+    url: http://victoriametrics-2:8428
+    isDefault: false
+    access: proxy
+    editable: true
   - name: "Promxy"
     type: prometheus
     url: http://promxy:8082
-    isDefault: false
+    isDefault: true
     access: proxy
     editable: true

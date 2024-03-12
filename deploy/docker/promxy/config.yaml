@@ -46,3 +46,29 @@ promxy:
         tls_config:
           insecure_skip_verify: true
       ignore_error: true
+
+    - static_configs:
+        - targets:
+            - victoriametrics-1:8428
+      labels:
+        sg: from_victoriametrics_1
+      anti_affinity: 10s
+      scheme: http
+      http_client:
+        dial_timeout: 1s
+        tls_config:
+          insecure_skip_verify: true
+      ignore_error: true
+
+    - static_configs:
+        - targets:
+            - victoriametrics-2:8428
+      labels:
+        sg: from_victoriametrics_2
+      anti_affinity: 10s
+      scheme: http
+      http_client:
+        dial_timeout: 1s
+        tls_config:
+          insecure_skip_verify: true
+      ignore_error: true

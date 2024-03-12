@@ -38,41 +38,75 @@ services:
     networks:
       - monitoring
 
-  prometheus-1:
-    image: prom/prometheus
-    container_name: prometheus-1
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-#      - '--storage.tsdb.path=/prometheus'
-#      - '--web.console.libraries=/etc/prometheus/console_libraries'
-#      - '--web.console.templates=/etc/prometheus/consoles'
-#      - '--web.enable-lifecycle'
-    ports:
-      - "9090:9090"
-    restart: unless-stopped
+  vmagent-1:
+    container_name: vmagent-1
+    image: victoriametrics/vmagent:latest
+    depends_on:
+      - "victoriametrics-1"
+    expose:
+      - 8429
     volumes:
-      - ./servers/server1/prometheus:/etc/prometheus
-      - prom_data1:/prometheus
+      - vm_data1:/vmagentdata
+      - ./servers/server1/vmetrics/vmagent-prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://victoriametrics-1:8428/api/v1/write"
     networks:
       - monitoring
+    restart: unless-stopped
 
-  prometheus-2:
-    image: prom/prometheus
-    container_name: prometheus-2
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-    #      - '--storage.tsdb.path=/prometheus'
-    #      - '--web.console.libraries=/etc/prometheus/console_libraries'
-    #      - '--web.console.templates=/etc/prometheus/consoles'
-    #      - '--web.enable-lifecycle'
-    ports:
-      - "9091:9090"
-    restart: unless-stopped
+  vmagent-2:
+    container_name: vmagent-2
+    image: victoriametrics/vmagent:latest
+    depends_on:
+      - "victoriametrics-2"
+    expose:
+      - 8429
     volumes:
-      - ./servers/server2/prometheus:/etc/prometheus
-      - prom_data2:/prometheus
+      - vm_data2:/vmagentdata
+      - ./servers/server2/vmetrics/vmagent-prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://victoriametrics-2:8428/api/v1/write"
     networks:
       - monitoring
+    restart: unless-stopped
+
+  victoriametrics-1:
+    container_name: victoriametrics-1
+    image: victoriametrics/victoria-metrics
+    ports:
+      - "8428:8428"
+      - "2003:2003"
+      - "4242:4242"
+    volumes:
+      - vm_data1:/storage
+    command:
+      - '--storageDataPath=/storage'
+      - '--graphiteListenAddr=:2003'
+      - '--opentsdbListenAddr=:4242'
+      - '--httpListenAddr=:8428'
+    networks:
+      - monitoring
+    restart: always
+
+  victoriametrics-2:
+    container_name: victoriametrics-2
+    image: victoriametrics/victoria-metrics
+    ports:
+      - "8429:8428"
+      - "2004:2003"
+      - "4243:4242"
+    volumes:
+      - vm_data2:/storage
+    command:
+      - '--storageDataPath=/storage'
+      - '--graphiteListenAddr=:2003'
+      - '--opentsdbListenAddr=:4242'
+      - '--httpListenAddr=:8428'
+    networks:
+      - monitoring
+    restart: always
 
   promxy:
     container_name: promxy
@@ -112,6 +146,10 @@ volumes:
   prom_data1: {}
   prom_data2: {}
   logvolume01: {}
+  vmagent_data1: {}
+  vmagent_data2: {}
+  vm_data1: {}
+  vm_data2: {}
 
 networks:
   monitoring:
