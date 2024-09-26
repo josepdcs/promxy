@@ -18,7 +18,7 @@ import (
 
 	_ "net/http/pprof"
 
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/golang/glog"
 	"github.com/grafana/regexp"
 	"github.com/jessevdk/go-flags"
@@ -38,6 +38,7 @@ import (
 	"github.com/prometheus/prometheus/rules"
 	"github.com/prometheus/prometheus/scrape"
 	"github.com/prometheus/prometheus/storage"
+	promlogging "github.com/prometheus/prometheus/util/logging"
 	"github.com/prometheus/prometheus/util/strutil"
 	"github.com/prometheus/prometheus/web"
 	"github.com/sirupsen/logrus"
@@ -369,6 +370,22 @@ func main() {
 		return nil
 	}}))
 
+	// PromQL query engine reloadable
+	reloadables = append(reloadables, proxyconfig.WrapPromReloadable(&proxyconfig.ApplyConfigFunc{func(cfg *config.Config) error {
+		if cfg.GlobalConfig.QueryLogFile == "" {
+			engine.SetQueryLogger(nil)
+			return nil
+		}
+
+		l, err := promlogging.NewJSONFileLogger(cfg.GlobalConfig.QueryLogFile)
+		if err != nil {
+			return err
+		}
+		engine.SetQueryLogger(l)
+
+		return nil
+	}}))
+
 	// We need an empty scrape manager, simply to make the API not panic and error out
 	scrapeManager := scrape.NewManager(nil, kitlog.With(logger, "component", "scrape manager"), nil)
 
@@ -431,7 +448,7 @@ func main() {
 	r.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Have our fallback rules
 		if strings.HasPrefix(r.URL.Path, path.Join(webOptions.RoutePrefix, "/debug")) {
-			http.StripPrefix(webOptions.RoutePrefix, http.DefaultServeMux).ServeHTTP(w, r)
+			http.StripPrefix(strings.Trim(webOptions.RoutePrefix, "/"), http.DefaultServeMux).ServeHTTP(w, r)
 		} else if r.URL.Path == path.Join(webOptions.RoutePrefix, "/-/ready") {
 			if stopping {
 				w.WriteHeader(http.StatusServiceUnavailable)

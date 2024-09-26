@@ -50,7 +50,7 @@ type OffsetFinder struct {
 }
 
 // Visit runs on each node in the tree
-func (o *OffsetFinder) Visit(node parser.Node, _ []parser.Node) (parser.Visitor, error) {
+func (o *OffsetFinder) Visit(node parser.Node, path []parser.Node) (parser.Visitor, error) {
 	o.l.Lock()
 	defer o.l.Unlock()
 	switch n := node.(type) {
@@ -58,6 +58,11 @@ func (o *OffsetFinder) Visit(node parser.Node, _ []parser.Node) (parser.Visitor,
 		if !o.Found {
 			o.Offset = n.OriginalOffset
 			o.Found = true
+			// If the top of the tree is a SubqueryExpr we can stop checking for offsets
+			// as we'll "unwrap" that subquery Expr into its own query
+			if len(path) == 0 {
+				return nil, nil
+			}
 		} else {
 			if n.OriginalOffset != o.Offset {
 				o.Error = fmt.Errorf("mismatched offsets %v %v", n.OriginalOffset, o.Offset)
@@ -118,4 +123,22 @@ func CloneExpr(expr parser.Expr) (newExpr parser.Expr) {
 func PreserveLabel(expr parser.Expr, srcLabel string, dstLabel string) (relabelExpress parser.Expr) {
 	relabelExpress, _ = parser.ParseExpr(fmt.Sprintf("label_replace(%s,`%s`,`$1`,`%s`,`(.*)`)", expr.String(), dstLabel, srcLabel))
 	return relabelExpress
+}
+
+func UnwrapExpr(expr parser.Expr) parser.Expr {
+	switch e := expr.(type) {
+	case *parser.StepInvariantExpr:
+		return e.Expr
+	}
+	return expr
+}
+
+func ExprIsLiteral(expr parser.Expr) bool {
+	switch expr.(type) {
+	case *parser.StringLiteral:
+		return true
+	case *parser.NumberLiteral:
+		return true
+	}
+	return false
 }
